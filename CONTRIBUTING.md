@@ -24,8 +24,9 @@ Run the checks that apply to your change before opening a PR:
 
 ```sh
 swift test --enable-code-coverage
+bash scripts/bundle.sh && bash scripts/smoke.sh
 bash scripts/shell-coverage.sh
-shellcheck -S warning linux/hotshot-capture.sh linux/install.sh linux/tests/hotshot-capture.test.sh linux/tests/install.test.sh scripts/bundle.sh scripts/tests/bundle.test.sh scripts/shell-coverage.sh
+shellcheck -S warning linux/hotshot-capture.sh linux/install.sh linux/tests/hotshot-capture.test.sh linux/tests/install.test.sh scripts/bundle.sh scripts/tests/bundle.test.sh scripts/shell-coverage.sh scripts/smoke.sh scripts/tests/smoke.test.sh
 pwsh -NoProfile -Command "Install-Module PSScriptAnalyzer -Force -Scope CurrentUser; Invoke-ScriptAnalyzer -Path windows -Recurse -Severity Error"
 pwsh -NoProfile -Command "Install-Module Pester -Force -Scope CurrentUser; Invoke-Pester -Path windows/tests -CI"
 ```
@@ -33,7 +34,7 @@ pwsh -NoProfile -Command "Install-Module Pester -Force -Scope CurrentUser; Invok
 CI (`.github/workflows/ci.yml`) runs the same checks and additionally enforces coverage floors, so a change that passes its tests can still fail CI if it adds untested lines:
 
 - Swift: `HotshotCore` and `HotshotApp` must each stay at or above 95% line coverage (the `floors` dict in the *Swift build* job). Read the per-file figures from `llvm-cov report` as the CI job does, or from the `.profdata` that `swift test --enable-code-coverage` writes under `swift build --show-bin-path`/codecov.
-- Shell: `scripts/shell-coverage.sh` runs `linux/tests/hotshot-capture.test.sh`, `linux/tests/install.test.sh` and `scripts/tests/bundle.test.sh` under xtrace and requires 95% line coverage of `linux/hotshot-capture.sh`, `linux/install.sh` and `scripts/bundle.sh`. Each suite can still be run on its own with `bash <suite>`; override a floor while iterating with `HOTSHOT_FLOOR_CAPTURE`, `HOTSHOT_FLOOR_INSTALL` or `HOTSHOT_FLOOR_BUNDLE`.
+- Shell: `scripts/shell-coverage.sh` runs `linux/tests/hotshot-capture.test.sh`, `linux/tests/install.test.sh`, `scripts/tests/bundle.test.sh` and `scripts/tests/smoke.test.sh` under xtrace and requires 95% line coverage of `linux/hotshot-capture.sh`, `linux/install.sh`, `scripts/bundle.sh` and `scripts/smoke.sh`. Each suite can still be run on its own with `bash <suite>`; override a floor while iterating with `HOTSHOT_FLOOR_CAPTURE`, `HOTSHOT_FLOOR_INSTALL`, `HOTSHOT_FLOOR_BUNDLE` or `HOTSHOT_FLOOR_SMOKE`.
 - PowerShell: the Pester job measures `windows/HotshotCapture.psm1` with an 88% coverage target (`CodeCoverage.CoveragePercentTarget` in the *Pester* job). `install.ps1` and `hotshot-capture.ps1` run in a child `pwsh`, so their suites exercise them without contributing to that figure.
 
 The floors sit a few points under what `main` measures; when your PR lifts coverage, raise them in the same PR.
@@ -42,6 +43,7 @@ Notes:
 
 - The Linux test suites are hermetic and do not need a display server, capture tools, or a real gsettings.
 - `swift test` requires macOS because the app targets import AppKit; it runs the suites in `Tests/HotshotCoreTests` (pure decisions) and `Tests/HotshotAppTests` (the pasteboard/watcher/injector shells, the injection coordinator, the menu model and its `NSMenu` builder, and the target tracker in `Sources/HotshotApp`). `Tests/HotshotAppTests/MenuActionHandlerTests.swift` also reads `Sources/hotshot/main.swift` to check that every `MenuAction` selector has an `@objc` handler on the app delegate, since the executable target itself cannot be linked into the test bundle.
+- `scripts/smoke.sh` is the only check that runs the app delegate in `Sources/hotshot/main.swift`: it launches the bundle `scripts/bundle.sh` built with an isolated screenshot directory, waits for the `app.launched` diagnostic, checks that the directory was created and both watchers started, then stops the app and restores your `hotshotScreenshotDir` preference. It needs macOS and a GUI session; `scripts/tests/smoke.test.sh` covers the harness itself with a stub app and stub `defaults`, so it runs anywhere.
 - The Pester suite (`windows/tests/hotshot-capture.tests.ps1`) exercises the Windows capture script logic — including the capture orchestration (clipboard wait loop, multi-format clipboard, typed-injection fallbacks) via injectable scriptblock collaborators, so no Snipping Tool, clipboard, or foreground window is needed — and runs on `windows-latest` in CI; it's independent of the PSScriptAnalyzer lint check above. `windows/tests/hotshot-capture.e2e.tests.ps1` runs the real `hotshot-capture.ps1` in a child `pwsh` against a recording stub of `HotshotCapture.psm1` to check the script's own wiring (parameter defaults, step order, failure exits); like `install.tests.ps1` it needs Windows because the script loads WinForms and `System.Drawing`.
 - If you cannot run a platform-specific check locally, say so in the PR and describe the manual validation you did run.
 
