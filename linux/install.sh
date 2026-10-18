@@ -83,8 +83,15 @@ if [ "$GNOME_HOTKEY" = 1 ]; then
             *"[]"*) gsettings set "$BASE" custom-keybindings "['$KEYPATH']" ;;
             *) gsettings set "$BASE" custom-keybindings "${EXISTING%]*}, '$KEYPATH']" ;;
         esac
+        # Two quoting layers: GNOME splits the command with shell word rules
+        # (POSIX single quotes), and gsettings parses its argument as a
+        # GVariant literal, so the shell-quoted word goes inside "...".
+        CMD="$PREFIX/hotshot-capture"
+        QUOTED="'${CMD//\'/\'\\\'\'}'"
+        QUOTED="${QUOTED//\\/\\\\}"
+        QUOTED="${QUOTED//\"/\\\"}"
         gsettings set "$BASE.custom-keybinding:$KEYPATH" name 'hotshot'
-        gsettings set "$BASE.custom-keybinding:$KEYPATH" command "$PREFIX/hotshot-capture"
+        gsettings set "$BASE.custom-keybinding:$KEYPATH" command "\"$QUOTED\""
         gsettings set "$BASE.custom-keybinding:$KEYPATH" binding '<Ctrl><Shift>Print'
         echo "GNOME hotkey registered: Ctrl+Shift+PrintScreen -> hotshot-capture"
     else
