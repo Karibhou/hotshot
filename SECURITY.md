@@ -2,16 +2,24 @@
 
 ## Reporting a vulnerability
 
-Please do not report security problems in public issues or pull requests.
+**Please do not report security vulnerabilities through public GitHub issues,
+pull requests, or discussions.** Public reports expose users to the very
+weakness being reported before a fix is available.
 
 hotshot types screenshot paths into a live terminal and rewrites the system
 clipboard, so a bug here can become command execution in the user's AI
-session. Report it privately so a fix can ship before the details are public:
+session. Report it privately so a fix can ship before the details are public.
 
-- Email `security@hivecommons.dev` (the Hive Commons security contact,
-  published at <https://hivecommons.dev/.well-known/security.txt>), or
-- use GitHub's private vulnerability reporting for this repository
-  (*Security → Report a vulnerability*) if the button is available.
+Use **private vulnerability reporting**:
+
+1. Go to this repository's **Security** tab.
+2. Click **Report a vulnerability** (GitHub's private security advisory flow).
+3. Provide a description of the issue and how to reproduce it.
+
+If private reporting is unavailable to you for any reason, email
+`security@hivecommons.dev` (the Hive Commons security contact published at
+<https://hivecommons.dev/.well-known/security.txt>) rather than opening a
+public issue.
 
 Include the platform (macOS app, `linux/hotshot-capture.sh`, or
 `windows/hotshot-capture.ps1`), the version or commit, steps to reproduce,
