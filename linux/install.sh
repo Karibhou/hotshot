@@ -2,12 +2,13 @@
 # hotshot Linux installer — installs hotshot-capture to ~/.local/bin, checks
 # dependencies, and (optionally) registers a GNOME custom hotkey.
 #
-# Usage: ./install.sh [--gnome-hotkey] [--prefix DIR]
+# Usage: ./install.sh [--gnome-hotkey] [--prefix DIR] [--uninstall]
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PREFIX="$HOME/.local/bin"
 GNOME_HOTKEY=0
+UNINSTALL=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -16,6 +17,7 @@ while [ $# -gt 0 ]; do
             shift
             PREFIX="${1:?--prefix requires a directory}"
             ;;
+        --uninstall) UNINSTALL=1 ;;
         -h | --help)
             awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"
             exit 0
@@ -40,6 +42,39 @@ PREFIX="${PREFIX%/}"
 [ -n "$PREFIX" ] || PREFIX="/"
 
 have() { command -v "$1" >/dev/null 2>&1; }
+
+# --- uninstall (parity with windows/install.ps1 -Uninstall) -------------------
+if [ "$UNINSTALL" = 1 ]; then
+    if [ -e "$PREFIX/hotshot-capture" ]; then
+        rm -f "$PREFIX/hotshot-capture"
+        echo "Removed: $PREFIX/hotshot-capture"
+    else
+        echo "Not installed: $PREFIX/hotshot-capture"
+    fi
+
+    if have gsettings; then
+        BASE="org.gnome.settings-daemon.plugins.media-keys"
+        KEYPATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/hotshot/"
+        EXISTING="$(gsettings get "$BASE" custom-keybindings 2>/dev/null || echo "@as []")"
+        case "$EXISTING" in
+            *"'$KEYPATH'"*)
+                # Drop our entry wherever it sits in the GVariant list: as a
+                # later element (", 'path'"), the first of several ("'path', ")
+                # or the only one; an emptied list must be typed ("@as []").
+                ENTRY="'$KEYPATH'"
+                NEWLIST="${EXISTING//, "$ENTRY"/}"
+                NEWLIST="${NEWLIST//"$ENTRY", /}"
+                NEWLIST="${NEWLIST//"$ENTRY"/}"
+                [ "$NEWLIST" = "[]" ] && NEWLIST="@as []"
+                gsettings set "$BASE" custom-keybindings "$NEWLIST"
+                gsettings reset-recursively "$BASE.custom-keybinding:$KEYPATH" 2>/dev/null || true
+                echo "GNOME hotkey removed"
+                ;;
+        esac
+    fi
+    echo "hotshot uninstalled."
+    exit 0
+fi
 
 mkdir -p "$PREFIX"
 install -m 755 "$SCRIPT_DIR/hotshot-capture.sh" "$PREFIX/hotshot-capture"

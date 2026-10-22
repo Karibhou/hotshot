@@ -195,6 +195,10 @@ if [ "$1" = "get" ]; then
     printf '%s\n' "${GSETTINGS_EXISTING:-@as []}"
     exit 0
 fi
+if [ "$1" = "reset-recursively" ]; then
+    echo "reset-recursively $2" >>"$GSLOG"
+    exit 0
+fi
 val="$4"
 q="${val:0:1}"
 if [ "$q" = "'" ] || [ "$q" = '"' ]; then
@@ -347,6 +351,72 @@ out="$(env -i BASH_ENV="${HOTSHOT_COVERAGE_RC:-}" HOME="$FAKEHOME" PATH="$MINBIN
 rc=$?
 assert_eq "gnome hotkey without gsettings: exit 1" "1" "$rc"
 assert_contains "gnome hotkey without gsettings: message" "gsettings not found" "$out"
+
+# ==============================================================================
+# --uninstall
+# ==============================================================================
+PREFIX_UNINSTALL="$TMP/uninstall_test"
+out="$(run_installer --prefix "$PREFIX_UNINSTALL" 2>&1)"
+if [ -x "$PREFIX_UNINSTALL/hotshot-capture" ]; then check "uninstall (setup): installed" 0; else check "uninstall (setup): installed" 1; fi
+
+run_uninstall() { # $1 = existing keybindings value returned by gsettings get
+    rm -f "$GSLOG"
+    env -i BASH_ENV="${HOTSHOT_COVERAGE_RC:-}" HOME="$FAKEHOME" PATH="$STUBS:$BASEPATH" GSETTINGS_EXISTING="$1" \
+        bash "$INSTALLER" --prefix "$PREFIX_UNINSTALL" --uninstall
+}
+
+CUSTOM0="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
+CUSTOM1="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/"
+
+# Installed, hotkey never registered -> file removed, gsettings untouched.
+out="$(run_uninstall "['$CUSTOM0']" 2>&1)"
+rc=$?
+assert_eq "uninstall: exit 0" "0" "$rc"
+assert_contains "uninstall: removed message" "Removed: $PREFIX_UNINSTALL/hotshot-capture" "$out"
+assert_contains "uninstall: uninstalled message" "hotshot uninstalled." "$out"
+if [ ! -e "$PREFIX_UNINSTALL/hotshot-capture" ]; then check "uninstall: file removed" 0; else check "uninstall: file removed" 1; fi
+if [ ! -e "$GSLOG" ]; then check "uninstall (not registered): gsettings not written" 0; else check "uninstall (not registered): gsettings not written" 1; fi
+case "$out" in
+    *"GNOME hotkey removed"*) check "uninstall (not registered): no hotkey message" 1 ;;
+    *) check "uninstall (not registered): no hotkey message" 0 ;;
+esac
+
+# Nothing installed -> still exit 0, says so.
+out="$(run_uninstall "@as []" 2>&1)"
+rc=$?
+assert_eq "uninstall (not installed): exit 0" "0" "$rc"
+assert_contains "uninstall (not installed): message" "Not installed: $PREFIX_UNINSTALL/hotshot-capture" "$out"
+
+# Hotkey is the only keybinding -> list emptied with the typed literal.
+out="$(run_uninstall "['$KEYPATH']" 2>&1)"
+rc=$?
+assert_eq "uninstall gnome (singleton): exit 0" "0" "$rc"
+assert_contains "uninstall gnome (singleton): hotkey removed message" "GNOME hotkey removed" "$out"
+grep -qF "set org.gnome.settings-daemon.plugins.media-keys custom-keybindings @as []" "$GSLOG"
+check "uninstall gnome (singleton): writes empty typed list" $?
+grep -qF "reset-recursively org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYPATH" "$GSLOG"
+check "uninstall gnome (singleton): resets the keybinding keys" $?
+
+# Hotkey in the middle of other keybindings -> only our entry is dropped.
+out="$(run_uninstall "['$CUSTOM0', '$KEYPATH', '$CUSTOM1']" 2>&1)"
+rc=$?
+assert_eq "uninstall gnome (middle): exit 0" "0" "$rc"
+grep -qF "set org.gnome.settings-daemon.plugins.media-keys custom-keybindings ['$CUSTOM0', '$CUSTOM1']" "$GSLOG"
+check "uninstall gnome (middle): keeps the other keybindings" $?
+
+# Hotkey first in the list.
+out="$(run_uninstall "['$KEYPATH', '$CUSTOM0']" 2>&1)"
+rc=$?
+assert_eq "uninstall gnome (first): exit 0" "0" "$rc"
+grep -qF "set org.gnome.settings-daemon.plugins.media-keys custom-keybindings ['$CUSTOM0']" "$GSLOG"
+check "uninstall gnome (first): keeps the other keybinding" $?
+
+# Hotkey last in the list.
+out="$(run_uninstall "['$CUSTOM0', '$KEYPATH']" 2>&1)"
+rc=$?
+assert_eq "uninstall gnome (last): exit 0" "0" "$rc"
+grep -qF "set org.gnome.settings-daemon.plugins.media-keys custom-keybindings ['$CUSTOM0']" "$GSLOG"
+check "uninstall gnome (last): keeps the other keybinding" $?
 
 # ==============================================================================
 echo
