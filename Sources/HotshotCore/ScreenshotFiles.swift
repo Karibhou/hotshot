@@ -2,6 +2,9 @@ import Foundation
 
 public let SCREENSHOT_EXTENSIONS: Set<String> = ["png", "jpg", "jpeg", "tiff", "bmp", "gif", "webp"]
 public let WATCH_DEBOUNCE_SECONDS = 1.5
+/// How often the app re-checks that the watch is bound to the current
+/// screenshot folder (see `ScreenshotWatcher.reconcileDirectory`).
+public let WATCH_DIRECTORY_RECONCILE_SECONDS = 30.0
 /// Max age of a new file, measured from when it became visible in the folder
 /// (see `fileVisibilityDate`), not from its last write.
 public let WATCH_FILE_AGE_MAX_SECONDS = 10.0
@@ -14,27 +17,17 @@ public func normalizedMacOSScreenshotLocation(_ path: String?) -> String? {
 }
 
 public func macOSScreenshotLocation() -> String {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-    task.arguments = ["read", "com.apple.screencapture", "location"]
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = FileHandle.nullDevice
-    do {
-        try task.run()
-        // Drain before waiting: a child that fills the pipe buffer blocks
-        // on write and never exits while we sit in waitUntilExit.
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        if let path = normalizedMacOSScreenshotLocation(String(data: data, encoding: .utf8)) {
-            return path
-        }
-    } catch {
-        NSLog(
-            diagnosticLine(
-                event: DiagnosticEvent.screenshotLocationLookupFailed.rawValue,
-                severity: .warn,
-                detail: "\(error.localizedDescription); falling back to ~/Desktop"))
+    // Authoritative: the same cfprefsd store `defaults read` prints, without
+    // forking a process. Synchronizing drops this process's cached copy so an
+    // external change is seen; an unset key goes straight to the fallback
+    // because this runs on the main run loop every
+    // WATCH_DIRECTORY_RECONCILE_SECONDS.
+    let domain = "com.apple.screencapture" as CFString
+    CFPreferencesAppSynchronize(domain)
+    if let path = normalizedMacOSScreenshotLocation(
+        CFPreferencesCopyAppValue("location" as CFString, domain) as? String)
+    {
+        return path
     }
     return NSHomeDirectory() + "/Desktop"
 }

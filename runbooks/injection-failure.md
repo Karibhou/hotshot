@@ -14,6 +14,7 @@ Diagnostics are stable event names and severities. Set `HOTSHOT_VERBOSE_LOGGING=
 | Event | Meaning | Action |
 |---|---|---|
 | `watcher.open_failed` (error) | macOS could not open the screenshot directory, so nothing is watched. | Check the screenshot location exists and is readable (`defaults read com.apple.screencapture location`); restart hotshot. |
+| `watcher.directory_changed` (info) | The macOS screenshot location changed while watching, so the watch was re-bound to the new folder (path shown). Not to be confused with `watcher.directory_change` (verbose-only), which is plain file activity in the watched folder. | Not a fault. Expect a `watcher.started` for the same path right after it. If the new folder cannot be opened you get `watcher.open_failed` (new path) instead and the previous folder stays watched. |
 | `watcher.started` but no `watcher.new_screenshot` | Watching, but no new file matched. | Confirm the screenshot is saved to the watched directory, not the clipboard (clipboard mode uses `pasteboard.*` events). |
 | `pasteboard.read_failed`, `pasteboard.png_conversion_failed`, `pasteboard.write_failed`, `clipboard.save_failed` | Clipboard image could not be read, converted, saved or written back to the pasteboard. hotshot refuses to auto-paste an image it could not save. | Retake the screenshot; check free disk space and write access to the screenshot folder. |
 | `applescript.unavailable`, `applescript.error` (error) | macOS could not run the injection script. Most often Accessibility or Automation permission is missing or was revoked. | System Settings > Privacy & Security > Accessibility (and Automation): remove and re-add hotshot, then relaunch. |
@@ -33,7 +34,6 @@ Diagnostics are stable event names and severities. Set `HOTSHOT_VERBOSE_LOGGING=
 | Log line `no terminal tracked` | No terminal has been focused since hotshot started, so there is nowhere to inject. | Focus the target terminal once, then take the screenshot again. |
 | `cannot determine tty ... defaulting to bracketed format` | CLI detection failed; the path is typed in the bracketed default form. | Informational. If the wrong format is typed, see the platform README for the supported CLIs. |
 | `terminal.tty_unknown` (warn, macOS) | hotshot could not read the target terminal's tty over AppleScript, so it could not detect which CLI is running and typed the path in the bracketed default form. Usually a missing Automation permission, or a terminal that exposes no tty. | Informational. If the wrong format is typed, grant Automation access (System Settings > Privacy & Security > Automation) and relaunch; see the platform README for the supported CLIs. |
-| `screenshot.location_lookup_failed` (warn, macOS) | `defaults read com.apple.screencapture location` could not be run, so hotshot fell back to `~/Desktop`. Screenshots saved elsewhere will not be seen by the watcher. | Confirm `/usr/bin/defaults` is runnable, or set the screenshot location to `~/Desktop`, then restart hotshot. |
 
 If no event is logged at all, hotshot is probably not running: relaunch it and look for `app.launched`.
 
