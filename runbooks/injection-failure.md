@@ -35,6 +35,22 @@ Diagnostics are stable event names and severities. Set `HOTSHOT_VERBOSE_LOGGING=
 | `cannot determine tty ... defaulting to bracketed format` | CLI detection failed; the path is typed in the bracketed default form. | Informational. If the wrong format is typed, see the platform README for the supported CLIs. |
 | `terminal.tty_unknown` (warn, macOS) | hotshot could not read the target terminal's tty over AppleScript, so it could not detect which CLI is running and typed the path in the bracketed default form. Usually a missing Automation permission, or a terminal that exposes no tty. | Informational. If the wrong format is typed, grant Automation access (System Settings > Privacy & Security > Automation) and relaunch; see the platform README for the supported CLIs. |
 
+### Informational events (not faults)
+
+These mark progress; read them to see how far a capture got before the first warn or error event.
+
+| Event | Meaning |
+|---|---|
+| `target.seeded`, `target.found_running` | At launch, the frontmost terminal (or an already-running one) became the injection target. |
+| `target.changed`, `target.terminated` | The tracked terminal switched, or it quit and was dropped. After `target.terminated`, expect `screenshot.no_terminal` / `clipboard.no_terminal` until a terminal is focused again. |
+| `watcher.stopped`, `clipboard.watch_started`, `clipboard.watch_stopped` | The screenshot watcher or clipboard watcher was stopped or started; the matching capture mode does nothing while its watcher is stopped. |
+| `watcher.new_files` | Files appeared in the watched folder (a count, or names under `HOTSHOT_VERBOSE_LOGGING=1`) before they were checked against the quarantine and stale rules. |
+| `clipboard.image_detected` | A new clipboard image was seen; hotshot then saves it, so look for `pasteboard.*` or `clipboard.save_failed` next. |
+| `clipboard.manual_inject`, `screenshot.inject_last` | A manual inject was requested: the clipboard image via Ctrl-V, or the latest screenshot file. |
+| `terminal.cli_detected` | The CLI running in the terminal was detected; this decides the path format typed. |
+| `injection.ctrl_v` | A Ctrl-V keystroke is about to be sent to the target terminal to paste the clipboard image. |
+| `applescript.result` | The injection AppleScript finished; its return value is shown. Failures use `applescript.error` above. |
+
 If no event is logged at all, hotshot is probably not running: relaunch it and look for `app.launched`.
 
 ## 3. Verify recovery
