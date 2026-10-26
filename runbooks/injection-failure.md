@@ -37,6 +37,27 @@ Diagnostics are stable event names and severities. Set `HOTSHOT_VERBOSE_LOGGING=
 
 If no event is logged at all, hotshot is probably not running: relaunch it and look for `app.launched`.
 
+## Informational events
+
+These events carry no error but log the progress of a capture, useful for triage when events go missing:
+
+| Event | Meaning |
+|---|---|
+| `target.seeded` (info) | The target terminal was seeded from the frontmost app when the menu opened, becoming the injection destination. |
+| `target.found_running` (info) | The target terminal was seeded from a running terminal (not frontmost) when the menu opened, becoming the injection destination. |
+| `target.changed` (info) | A different terminal became the active target when it was focused. |
+| `target.terminated` (info) | The tracked target terminal exited, so the target was cleared. |
+| `clipboard.watch_started` (info) | Clipboard watcher polling began; the system will now detect new images pasted or clipboard contents arriving. |
+| `clipboard.watch_stopped` (info) | Clipboard watcher polling stopped (hotshot was closed). |
+| `clipboard.image_detected` (info) | A new image appeared on the clipboard (reported with a change count). |
+| `clipboard.manual_inject` (info) | An image was manually pasted from the clipboard via Ctrl-V (the user chose "Inject" from the menu after focusing the terminal). |
+| `screenshot.inject_last` (info) | The user chose "Inject last screenshot" from the menu; the path to the most recent screenshot in the watched folder was typed. |
+| `watcher.stopped` (info) | Screenshot watcher stopped (hotshot was closed). |
+| `watcher.new_files` (info) | One or more new files appeared in the watched screenshot folder (the count is shown; filenames appear only when `HOTSHOT_VERBOSE_LOGGING=1`). |
+| `terminal.cli_detected` (info) | The target terminal's CLI was detected and the injection format was selected to match it (details show the CLI and terminal name). |
+| `injection.ctrl_v` (info) | A Ctrl-V keystroke sequence was sent to the terminal to trigger clipboard paste. |
+| `applescript.result` (info, verbose-only) | An AppleScript command succeeded; the result value (or "(none)") is logged only with `HOTSHOT_VERBOSE_LOGGING=1`. |
+
 ## 3. Verify recovery
 
 1. Take a fresh screenshot while the target terminal is focused.
