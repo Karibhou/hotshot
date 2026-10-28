@@ -4,6 +4,8 @@ All notable changes to hotshot are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
 
 - macOS and Linux: Gemini CLI is recognised and gets its `@path` form (`@` plus the backslash-escaped path) instead of the bracketed fallback (#307).
@@ -19,6 +21,8 @@ All notable changes to hotshot are documented in this file. The format is based 
 - Linux and Windows: target classification now matches CLI names per command-line argument, so a `claude <x>` path component no longer selects the claude format (#292).
 - Watch mode now follows an external change of the macOS screenshot location instead of staying on the old folder, and reading that location no longer forks `defaults` on every lookup.
 - A focus-lost or refused-filename injection now posts only its own notification instead of also telling you to re-allow Automation.
+- Linux: the CopyQ clipboard entry now also carries a `text/uri-list` file URI alongside the PNG and the plain path (#309).
+- macOS: `scripts/bundle.sh` now derives `CFBundleShortVersionString` from the git tag (`v0.2.0` gives `0.2.0`) instead of a hard-coded `1.0.0`, and sets `CFBundleVersion` to the full `git describe` string (#300).
 
 ## [0.1.0] - 2026-10-23
 
@@ -33,5 +37,6 @@ First tagged release. Full auto-generated notes are on the [GitHub Release](http
 - Hermetic Linux and Windows test suites and extracted `HotshotCore` helpers for shared macOS decision logic.
 - Runbooks for injection failures, release rollback and postmortems.
 
-[Unreleased]: https://github.com/hivecommons/hotshot/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hivecommons/hotshot/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hivecommons/hotshot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hivecommons/hotshot/releases/tag/v0.1.0
