@@ -333,10 +333,13 @@ Describe 'hotshot-capture.ps1' {
         $env:HOTSHOT_VERBOSE_LOGGING = '1'
         $result = Invoke-CaptureScript -Arguments "-Dir `"$script:ShotDir`"" -WithImage -ReserveFails
         $result.ExitCode | Should -Be 1
-        $result.Stderr | Should -Match 'hotshot: cannot reserve a screenshot file in '
-        # The long temp path may be wrapped in the redirected error view.
-        ($result.Stderr -replace '\r?\n\s*', '') | Should -Match ([regex]::Escape($script:ShotDir))
-        $result.Stderr | Should -Not -Match 'cannot reserve a screenshot file in <redacted>'
+        # The redirected ConciseView error wraps the long temp path onto
+        # continuation lines prefixed with a '| ' gutter (the break can land
+        # right after "in"), so unwrap once and assert on the joined message.
+        $unwrapped = $result.Stderr -replace '\r?\n\s*(\|\s?)?', ''
+        $unwrapped | Should -Match 'hotshot: cannot reserve a screenshot file in\s*'
+        $unwrapped | Should -Match ([regex]::Escape($script:ShotDir))
+        $unwrapped | Should -Not -Match 'cannot reserve a screenshot file in\s*<redacted>'
     }
 
     It 'fails before launching the overlay when HotshotCapture.psm1 is not next to the script (#119)' {
